@@ -140,6 +140,75 @@ Based on these weights, basis kernels are summed to calculate the adaptive kerne
     weights,
     basis_kernels
 )
+</code></pre>
+<p>Below is the full implementation of Adaptive Kernel along with Adaptive Convolution layer module in PyTorch:</p>
+<pre><code class="language-python">class AdaptiveKernel(nn.Module):
+
+    def __init__(self, n_basis, in_channels, out_channels, kernel_size, time_embedding_dim, speaker_embedding_dim):
+        super(AdaptiveKernel, self).__init__()
+        self.n_basis = n_basis
+        self.time_embedding_dim = time_embedding_dim
+        self.speaker_embedding_dim = speaker_embedding_dim
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+
+        # Defining the Affine Network
+        self.affine_network = nn.Sequential(
+            nn.Linear(self.time_embedding_dim + self.speaker_embedding_dim, self.n_basis),
+            nn.Softmax(dim=-1)
+        )
+
+        # Define the basis filters
+        # N number of kernels of shape (in_channels, out_channels, kernel_size)
+        self.basis_kernels = nn.Parameter(
+            torch.randn(self.n_basis, self.out_channels, self.in_channels, self.kernel_size)
+        )
+
+
+    def forward(self, time_embedding, speaker_embedding):
+        &quot;&quot;&quot;
+        Args:
+            time_embedding: Tensor of shape (B, time_embedding_dim)
+            speaker_embedding: Tensor of shape (B, speaker_embedding_dim)
+        Returns:
+            Tensor of shape (B, out_channels, in_channels, kernel_size)
+        &quot;&quot;&quot;
+        condition = torch([time_embedding, speaker_embedding], dim=-1)
+
+        mix_weights = self.affine_network(condition)
+
+        adaptive_kernel = torch.einsum(
+            'bn,noik-&gt;boik',
+            mix_weights,
+            self.basis_kernels
+        )
+
+        return adaptive_kernel
+
+
+class AdaptiveConv1D(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, time_embedding_dim, speaker_embedding_dim, n_basis=8):
+        super(AdaptiveConv1D, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.time_embedding_dim = time_embedding_dim
+        self.speaker_embedding_dim = speaker_embedding_dim
+        self.n_basis = n_basis
+        self.adaptive_kernel = AdaptiveKernel(self.n_basis, self.in_channels, self.out_channels, self.kernel_size, self.time_embedding_dim, self.speaker_embedding_dim)
+
+    def forward(self, x, time_embedding, speaker_embedding):
+        &quot;&quot;&quot;
+        Args:
+            x: Tensor of shape (B, in_channels, L)
+            time_embedding: Tensor of shape (B, time_embedding_dim)
+            speaker_embedding: Tensor of shape (B, speaker_embedding_dim)
+        Returns:
+            Tensor of shape (B, out_channels, L)
+        &quot;&quot;&quot;
+        kernel = self.adaptive_kernel(time_embedding, speaker_embedding)
+        return F.conv1d(x, kernel, stride=1, padding=self.kernel_size // 2)
 </code></pre></div>
             </div>
         </div>
