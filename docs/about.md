@@ -23,8 +23,11 @@ To understand the building blocks of E3-TTS, we need to understand few concepts 
 Standard convolution layer works with static kernel which is initialized at start of the training. As training progresses the weights of kernel are updated via backpropagtion.
 Convolution layers came out to be very effective to capture the features of spatial data (images) or sequential data of large sequence (audio data). The behavour of static kernel tends to
 be very rigid compared to dynamic kernels which are generated on the fly while training. Adaptive kernels have advantage over static kernels like:
+
 1. **Context Sensitivity**: The model can change its processing strategy based on the speaker identity. For example, the filter used to generate a high-pitched child's voice should be different from one used for a deep baritone voice.
+
 2. **Parameter Efficiency**: Instead of learning 100 different static filters to handle 100 different scenarios, you learn one small "generator" network that creates the right filter for the right moment.
+
 3. **Temporal Precision**: In diffusion models (like E3TTS), the noise level changes at every step. Adaptive kernels allow the network to adjust its "denoising strength" precisely according to the time-step $t$, smoothing out noise aggressively in early steps and preserving fine details in later steps.
 
 ## Implementation
