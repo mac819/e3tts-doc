@@ -18,11 +18,8 @@ E3TTS is **E**asy **End**-to-**E**nd Diffusion based text to speech, a simple an
 
 To understand the building blocks of E3-TTS, we need to understand few concepts like Adaptive kernel for CNN layer, FiLM and Efficient UNet.
 
-
 # Adaptive kernel
-Standard convolution layer works with static kernel which is initialized at start of the training. As training progresses the weights of kernel are updated via backpropagtion.
-Convolution layers came out to be very effective to capture the features of spatial data (images) or sequential data of large sequence (audio data). The behavour of static kernel tends to
-be very rigid compared to dynamic kernels which are generated on the fly while training. Adaptive kernels have advantage over static kernels like:
+Standard convolution layer works with static kernel which is initialized at start of the training. As training progresses the weights of kernel are updated via backpropagation. Convolution layers came out to be very effective to capture the features of spatial data (images) or sequential data of large sequence (audio data). The behavior of static kernel tends to be very rigid compared to dynamic kernels which are generated on the fly while training. Adaptive kernels have advantage over static kernels like:
 
 1. **Context Sensitivity**: The model can change its processing strategy based on the speaker identity. For example, the filter used to generate a high-pitched child's voice should be different from one used for a deep baritone voice.
 
