@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Introduction - E3TTS</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">E3TTS</a>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#introduction" class="nav-link">Introduction</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#approach" class="nav-link">Approach</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#e3tts" class="nav-link">E3TTS</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#adaptive-kernel" class="nav-link">Adaptive kernel</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#implementation" class="nav-link">Implementation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="introduction">Introduction</h1>
+<p>Over past years, I have been exploring about Text-to-Speech models, which takes plain text as input and generates audio waveform. There are a lot of models for converting plain text into speech. To understand how text is converted into speech, we need to understand how text and speech is represented.</p>
+<p>There are different approach in which we can handle text and same goes for speech. For text, we can use text as raw input without any processing or can convert raw text into phonemes and then feed into the model. Module to convert text to phoneme can be helpful to embed different language specific pronunciation details. </p>
+<p>Audio data is represented in waveform format. Audio data can be represented in different forms. For working with TTS models, I have majorly dealt with audio waveform which represents audio in time dimension and Mel-Spectrogram which represents audio in frequency domain.</p>
+<h1 id="approach">Approach</h1>
+<p>For building TTS model, there are different approach. Models can be categorised based on the approach with which it is converting the text into speech. For example, early models first convert the text into Mel-Spectrogram. Then vocoder models are used to convert the Mel-Spectrogram to wavefrom, basically converting frequency domain data into time domain. Converting text into audio speech is sequence to sequence problem statement. With early models, there were different aspects for creating training data. TTS models were dependent on text to audio time-frames alignment data. Mapping of a text token/phoneme to the time frame which audio waveform/mel-spectrogram belongs. </p>
+<p>As we move along the time, in hope of building TTS models which could generate speech of high fidelity, which would capture complex nuances of mapping text tokens to audio frames End-to-End models were developed. These End-to-End models would just take plain text/phonemes as input and will generate audio wavefrom directly. It's architecture are designed as such, it will learn the alignment between text and audio frames while training process. Enough talking is done, let's deep dive into the model, which I am planning to create from scratch. It is different from above mention approach. It is based on diffusion model architecture along with text information coming from BERT model embedding.</p>
+<h1 id="e3tts">E3TTS</h1>
+<p>E3TTS is <strong>E</strong>asy <strong>End</strong>-to-<strong>E</strong>nd Diffusion based text to speech, a simple and efficient model. It takes plain text and generates an audio waveform through an iterative process of refinement. Unlike many TTS models, this does not rely on any intermediate representations like spectrogram features or alignment information. Instead E3TTS models the temporal structure of the waveform through the diffusion process. Without relying on additional conditioning information, E3 TTS could support flexible latent structure within the given audio. This enables E3 TTS to be easily adapted for zero-shot tasks such as editing without any additional training.</p>
+<p><img alt="UNet Diagram" src="../img/e3tts_model_diagram.png" />
+<center><i>UNet Structure: DBlock for downsampling block, UBlock for upsampling block</i></center></p>
+<p>To understand the building blocks of E3-TTS, we need to understand few concepts like Adaptive kernel for CNN layer, FiLM and Efficient UNet.</p>
+<h1 id="adaptive-kernel">Adaptive kernel</h1>
+<p>Standard convolution layer works with static kernel which is initialized at start of the training. As training progresses the weights of kernel are updated via backpropagtion.
+Convolution layers came out to be very effective to capture the features of spatial data (images) or sequential data of large sequence (audio data). The behavour of static kernel tends to
+be very rigid compared to dynamic kernels which are generated on the fly while training. Adaptive kernels have advantage over static kernels like:
+1. <strong>Context Sensitivity</strong>: The model can change its processing strategy based on the speaker identity. For example, the filter used to generate a high-pitched child's voice should be different from one used for a deep baritone voice.
+2. <strong>Parameter Efficiency</strong>: Instead of learning 100 different static filters to handle 100 different scenarios, you learn one small "generator" network that creates the right filter for the right moment.
+3. <strong>Temporal Precision</strong>: In diffusion models (like E3TTS), the noise level changes at every step. Adaptive kernels allow the network to adjust its "denoising strength" precisely according to the time-step <span class="arithmatex"><span class="MathJax_Preview">t</span><script type="math/tex">t</script></span>, smoothing out noise aggressively in early steps and preserving fine details in later steps.</p>
+<h2 id="implementation">Implementation</h2>
+<p>Adaptive kernel is used in E3TTS model conditioned with time and speaker embedding. Let's assume the embedding dimensions of time and speaker to be <code>128</code> and <code>256</code> respectively.</p>
+<ul>
+<li>Time embedding: <span class="arithmatex"><span class="MathJax_Preview">t \in \mathbb{R}^{128}</span><script type="math/tex">t \in \mathbb{R}^{128}</script></span></li>
+<li>Speaker embedding: <span class="arithmatex"><span class="MathJax_Preview">s \in \mathbb{R}^{256}</span><script type="math/tex">s \in \mathbb{R}^{256}</script></span></li>
+<li>Condition embedding: <span class="arithmatex"><span class="MathJax_Preview">c \in \mathbb{R}^{384}</span><script type="math/tex">c \in \mathbb{R}^{384}</script></span></li>
+</ul>
+<p>Condition embedding is created by concatenating the time and speaker embedding by last dimension</p>
+<pre><code class="language-python">condition = torch.cat([t, s], dim=-1)
+</code></pre>
+<p>To create adaptive kernels for convolution layer, we need to create <code>N</code> bank of kernel basis and <code>N</code> mixin-weights. For weights, we pass the condition vector <code>c</code> through affine network and softmax activation. This gives the weights which will be used to sum kernel basis. Kernel basis can be initialized with the shape of <code>(n_basis, out_channel, in_channel, kernel_size)</code></p>
+<pre><code class="language-python"># Affine Network
+affine_network = nn.Sequential(
+    nn.Linear(time_embedding_dims + speaker_embedding_dims, n_basis),
+    nn.Softmax(dim=-1)
+)
+
+# Basis Kernels
+basis_kernels = nn.Parameter(
+    torch.randn(n_basis, out_channels, in_channels, kernel_size)
+)
+</code></pre>
+<p>Affine layer calculates the logits from condition vector. 
+$$
+weights = \text{Softmax}(w^T*c + b);\quad Where \;weights\in   [0, 1]^{n_{\text{basis}}} 
+\\
+\text{basis_kernels}\in\mathbb{R}^{n_{\text{basis}}\times\text{out_channels}\times\text{in_channels}\times\text{kernel_size}}
+$$
+Based on these weights, basis kernels are summed to calculate the adaptive kernel which will be used to convolution layer.</p>
+<pre><code class="language-python">kernel = torch.einsum(
+    'bn,noik-&gt;boik',
+    weights,
+    basis_kernels
+)
+</code></pre></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
