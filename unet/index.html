@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>UNet - E3TTS</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">E3TTS</a>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#unet" class="nav-link">UNet</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#implementation" class="nav-link">Implementation</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#final-model" class="nav-link">Final Model</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="unet">UNet</h1>
+<p>UNet model architecture is widely used across different models. This model gained traction from paper on image segmentation which is <strong>U-Net: Convolution Networks for Biomedical Image Segmentation</strong>. This model has downsampling and upsampling part. 
+<img alt="UNet Diagram" src="img/unet.png" />
+<center><i>UNet Structure: DBlock for downsampling block, UBlock for upsampling block</i></center></p>
+<h1 id="implementation">Implementation</h1>
+<p>This model takes the image tile and outputs segmentation map. To make this model let's assume the input image tile as following:
+$$
+X \in \mathbb{R}^{572 \times 572}
+$$</p>
+<p>First model will have the input convolution in which the input image tile is mapped from 1 channel to 64 channels. Then it will pass through series of downsampling blocks. Output of each downsampling blocks will be appended to a list except the last one, which will be used for skip connection. The output of downsampling Mudulelist will be fed into series of updampling blocks which will give feature map with 64 channels. This is finally fed into the output convolution mapping to the final 2 channels.</p>
+<pre><code class="language-python">input_conv = nn.Sequential(
+    nn.Conv2d(1, base_channel, 3, padding=0),
+    nn.Conv2d(base_channel, base_channel, 3, padding=0)
+)
+</code></pre>
+<p><center><b>Input Convolution</b></center></p>
+<pre><code class="language-python">for idx, mult in enumerate(channel_mult):
+    if idx == 0:
+        in_channel = base_channel
+        out_channel = base_channel * mult
+    else:
+        in_channel = out_channel
+        out_channel = base_channel * mult
+
+    downsampling_blocks.append(
+        nn.Sequential(
+            nn.MaxPool2d(2),
+            nn.Conv2d(in_channel, out_channel, 3, padding=0),
+            nn.Conv2d(out_channel, out_channel, 3, padding=0)
+        )
+    )
+</code></pre>
+<p><center><b>Downsampling Layers</b></center></p>
+<pre><code class="language-python">rev_channel_mult = channel_mult[::-1]
+for idx, mult in enumerate(rev_channel_mult):
+    if idx == len(rev_channel_mult) - 1:
+        in_channel = base_channel * mult
+        out_channel = base_channel
+    else:
+        in_channel = base_channel * mult
+        out_channel = base_channel * rev_channel_mult[idx+1]
+
+    upsampling_blocks.append(
+        nn.Sequential(
+            nn.ConvTranspose2d(in_channel, out_channel, 2, stride=2, padding=0),
+            nn.Conv2d(in_channel, out_channel, 3, padding=0),
+            nn.Conv2d(out_channel, out_channel, 3, padding=0)
+        )
+    )
+</code></pre>
+<p><center><b>Upsampling Layers</b></center></p>
+<pre><code class="language-python">out_conv = nn.Conv2d(base_channel, 2, 3, padding=0)
+</code></pre>
+<p><center><b>Output Convolution</b></center></p>
+<pre><code class="language-python"># Forward Pass
+x = torch.randn(1, 1, 572, 572) # (B, C, H, W)
+
+# Encoder path - store skip connections
+skip_connections = []
+
+# Input Convolution
+h = input_conv(x)
+skip_connections.append(h)
+
+for i, d_block in enumerate(downsampling_blocks):
+    h = d_block(h)
+
+    if i &lt; len(downsampling_blocks) - 1:
+        skip_connections.append(h)
+
+# Reverse the skip connections to match the order of upsampling order
+skip_connections = skip_connections[::-1]
+
+# Decoder path - use skip connections
+for i, u_block in enumerate(upsampling_blocks):
+    h = u_block[0](h)
+
+    skip = skip_connections[i]
+
+    # Crop skip connection if needed (to match the spatial dimensions)
+    # This handles cases where the dimensions don't match exactly
+    _, _, h_h, h_w = h.shape
+    _, _, s_h, s_w = skip.shape
+
+    if h_h != s_h or h_w != s_w:
+        # Center crop the skip connection
+        diff_h = (s_h - h_h) // 2
+        diff_w = (s_w - h_w) // 2
+        skip = skip[:, :, diff_h:s_h-diff_h, diff_w:s_w-diff_w]
+
+    # Concatenate along channel dimension
+    h = torch.cat([h, skip], dim=1)
+
+    # Apply remaining convolutions
+    h = u_block[1](h)  # First Conv2d (handles doubled channels)
+    h = u_block[2](h)  # Second Conv2d
+
+# Final output convolution
+h = out_conv(h)
+logger.info(f&quot;Final output shape: {h.shape}&quot;)
+</code></pre>
+<p><center><b>Sample for Forward Pass</b></center></p>
+<h2 id="final-model">Final Model</h2>
+<pre><code class="language-python">class UNet(nn.Module):
+    def __init__(self, channel_mult, base_channel):
+        super(UNet, self).__init__()
+        self.channel_mult = channel_mult
+        self.base_channel = base_channel
+
+        self.input_conv = nn.Sequential(
+            nn.Conv2d(1, base_channel, 3, padding=0),
+            nn.Conv2d(base_channel, base_channel, 3, padding=0)
+        )
+
+        self.downsampling_blocks = nn.ModuleList()
+        self.upsampling_blocks = nn.ModuleList()
+
+        for idx, mult in enumerate(channel_mult):
+            if idx == 0:
+                in_channel = base_channel
+                out_channel = base_channel * mult
+            else:
+                in_channel = out_channel
+                out_channel = base_channel * mult
+
+            self.downsampling_blocks.append(
+                nn.Sequential(
+                    nn.MaxPool2d(2),
+                    nn.Conv2d(in_channel, out_channel, 3, padding=0),
+                    nn.Conv2d(out_channel, out_channel, 3, padding=0)
+                )
+            )
+
+        for idx, mult in enumerate(channel_mult[::-1]):
+            if idx == len(channel_mult[::-1]) - 1:
+                in_channel = base_channel * mult
+                out_channel = base_channel
+            else:
+                in_channel = base_channel * mult
+                out_channel = base_channel * channel_mult[::-1][idx+1]
+
+            self.upsampling_blocks.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(in_channel, out_channel, 2, stride=2, padding=0),
+                    nn.Conv2d(in_channel, out_channel, 3, padding=0),
+                    nn.Conv2d(out_channel, out_channel, 3, padding=0)
+                )
+            )
+
+        self.out_conv = nn.Conv2d(base_channel, 2, 3, padding=0)
+
+    def forward(self, x):
+        &quot;&quot;&quot;
+        Args:
+            x: Tensor of shape (B, 1, H, W)
+        Returns:
+            Tensor of shape (B, 2, H, W)
+        &quot;&quot;&quot;
+        h = self.input_conv(x)
+        skip_connections = []
+        for i, d_block in enumerate(self.downsampling_blocks):
+            h = d_block(h)
+
+            if i &lt; len(self.downsampling_blocks) - 1:
+                skip_connections.append(h)
+
+        # Reverse the skip connections to match the order of upsampling order
+        skip_connections = skip_connections[::-1]
+        # Decoder path - use skip connections
+        for i, u_block in enumerate(self.upsampling_blocks):
+            h = u_block[0](h)
+
+            skip = skip_connections[i]
+
+            # Crop skip connection if needed (to match the spatial dimensions)
+            # This handles cases where the dimensions don't match exactly
+            _, _, h_h, h_w = h.shape
+            _, _, s_h, s_w = skip.shape
+
+            if h_h != s_h or h_w != s_w:
+                # Center crop the skip connection
+                diff_h = (s_h - h_h) // 2
+                diff_w = (s_w - h_w) // 2
+                skip = skip[:, :, diff_h:s_h-diff_h, diff_w:s_w-diff_w]
+
+            # Concatenate along channel dimension
+            h = torch.cat([h, skip], dim=1)
+
+            # Apply remaining convolutions
+            h = u_block[1](h)  # First Conv2d (handles doubled channels)
+            h = u_block[2](h)  # Second Conv2d
+
+        # Final output convolution
+        h = self.out_conv(h)
+        return h
+</code></pre></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
