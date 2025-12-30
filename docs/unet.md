@@ -1,6 +1,6 @@
 # UNet
 UNet model architecture is widely used across different models. This model gained traction from paper on image segmentation which is **U-Net: Convolution Networks for Biomedical Image Segmentation**. This model has downsampling and upsampling part. 
-![UNet Diagram](img/unet.png)
+![UNet Diagram](img/UNet.png)
 <center><i>UNet Structure: DBlock for downsampling block, UBlock for upsampling block</i></center>
 
 # Implementation
