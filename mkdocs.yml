@@ -21,3 +21,5 @@ theme:
     - content.code.annotate
     - content.code.copy
     - content.tabs.link
+  palette:
+    scheme: slate  # Enables the dark theme
