@@ -9,3 +9,15 @@ extra_javascript:
 nav:
   - E3tts: about.md
   - UNet: unet.md
+
+theme: 
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.integrate
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
