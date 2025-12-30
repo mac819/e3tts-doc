@@ -7,4 +7,5 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML
 
 nav:
-  - About: about.md
+  - E3tts: about.md
+  - UNet: unet.md
